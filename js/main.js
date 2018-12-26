@@ -53,6 +53,7 @@ window.onload = function() {
     IK.reach(IK.xEnd, IK.yEnd, 2);
     Promise.resolve(update()).then(initPlotly());
     writeLog(IK.angles[0], IK.angles[1], IK.angles[2]);
+    writeInitMsg("Click & Drag the joints!");
 
 	function update() {
 		// Draw the circle and the arms
@@ -157,6 +158,14 @@ window.onload = function() {
 		ctxLog.textAlign = "center";
 		ctxLog.fillText("("+ang1.toString()+", "+ang2.toString()+", "+ang3.toString()+")",
 			ctxLogWidth/2, ctxLogHeight/2);
+	}
+
+	function writeInitMsg(txt) {
+		// Write an initial message on task space
+		ctxTask.font = "20px Comic Sans MS";
+		ctxTask.textAlign = "center";
+		ctxTask.fillStyle = "black";
+		ctxTask.fillText(txt, ctxTaskWidth/2, ctxTaskHeight*0.3);
 	}
 
 	//--------------------------------------------------------------------
