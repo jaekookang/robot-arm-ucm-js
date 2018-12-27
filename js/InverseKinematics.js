@@ -3,7 +3,6 @@ class InverseKinematics {
 		this.x = x; // base x
 		this.y = y; // base y
 		this.arms = [];
-		this.angles = new Array(3); // angles w.r.t. each joint
 		this.xEnd = null;
 		this.yEnd = null;
 		this.angleSum = 0;
@@ -35,6 +34,7 @@ class InverseKinematics {
 		this.xEnd = arm.getEndXY()[0];
 		this.yEnd = arm.getEndXY()[1];
 		this.angleSum += angle;
+		this.angles = new Array(this.arms.length); // angles w.r.t. each joint
 	}
 
 	render(context) {

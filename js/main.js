@@ -53,7 +53,7 @@ window.onload = function() {
 		cm2_vec,
 		ucm_vec_end,
 		ucm_vec_beg,
-		scaler = 3,
+		scaler = 2,
 		IK,
 		xEndPrev = [],
 		yEndPrev = [];
@@ -83,12 +83,12 @@ window.onload = function() {
 	    // Set task variables
 		xEndPrev.push(IK.xEnd),
 		yEndPrev.push(IK.yEnd);
-	    // Initial update for the synchronous execution consequently
+		// Update
 	    IK.reach(IK.xEnd, IK.yEnd, 2);
-	    Promise.resolve(initPlotly())
-	    	.then(update())
-	    	.then(updateUCM())
-	    	.then(updatePlot());
+	    initPlotly();
+	    update();
+	    updateUCM();
+	    updatePlot(IK.angles[0], IK.angles[1], IK.angles[2]);
 	    writeInitMsg("Click & Drag the joints!");
 	}
 
@@ -104,7 +104,7 @@ window.onload = function() {
 	    IK.addArm(seg3, ucm_vec_beg[2]+dz, theta3Color);  // top
 	    IK.reach(IK.xEnd, IK.yEnd, 2);
 	    update(); // Update Task space
-	    updatePlot(); // Update Joint space
+	    updatePlot(ucm_vec_beg[0]+dx, ucm_vec_beg[1]+dy, ucm_vec_beg[2]+dz); // Update Joint space
 
 	    slider.state = true;
     });
@@ -125,10 +125,6 @@ window.onload = function() {
 
 	function updateUCM() {
 		var jacob = getJacobian(seg1,seg2,seg3,IK.angles[0],IK.angles[1],IK.angles[2]);
-		// var SVD = getBases(mySVD(jacob));
-		// ucm_vec = mul(array2vec(SVD[0]), scaler),
-		// cm1_vec = array2vec(SVD[1]),
-		// cm2_vec = array2vec(SVD[2]);
 		bases = getBases(jacob);
 		ucm_vec = mul(bases[0], scaler);
 		cm1_vec = mul(bases[1][0], scaler);
@@ -142,12 +138,12 @@ window.onload = function() {
 		ucm_vec_beg = add(ucm_vec_beg, IK.angles);
 	}
 
-	function updatePlot() {
+	function updatePlot(ang1, ang2, ang3) {
 		// Draw joint plot
 		Plotly.restyle(divJoint, {	
-			x: [[IK.angles[0]]], // double bracket!
-			y: [[IK.angles[1]]],
-			z: [[IK.angles[2]]], 
+			x: [[ang1]], // double bracket!
+			y: [[ang2]],
+			z: [[ang3]], 
 		}, 0); // trace1
 		// Draw UCM bases
 		Plotly.restyle(divJoint,{
@@ -169,7 +165,7 @@ window.onload = function() {
 			IK.reach(mousePosition.x, mousePosition.y, whichArm);
 			update(); // Update Task space
 			updateUCM(); // Update UCM
-			updatePlot(); // Update Joint space
+			updatePlot(IK.angles[0], IK.angles[1], IK.angles[2]); // Update Joint space
 			
 			// Re-center the slider
 			document.getElementById("slider-ucm").value = 0.5;
@@ -237,9 +233,15 @@ window.onload = function() {
 		let fixedPoint = 0,
 			ang1 = (theta1*180/Math.PI).toFixed(fixedPoint),
 			ang2 = (theta2*180/Math.PI).toFixed(fixedPoint),
-			ang3 = (theta3*180/Math.PI).toFixed(fixedPoint);
+			ang3 = (theta3*180/Math.PI).toFixed(fixedPoint),
+			error;
 		xEnd = xEnd.toFixed(0);
 		yEnd = yEnd.toFixed(0);
+		if (xEndPrev.length > 3 & yEndPrev.length > 3) {
+			// To clear the memory
+			delete xEndPrev[0];
+			delete yEndPrev[0];
+		}
 
 		// Write Joint angles (thetas)
 		ctxLog.font = "20px Comic Sans MS";
@@ -254,6 +256,7 @@ window.onload = function() {
 		} else {
 			error = 0;
 		}
+		
 		ctxLog.font = "20px Comic Sans MS";
 		ctxLog.textAlign = "center";
 		ctxLog.fillText("Tasks (x,y): ("+xEnd.toString()+", "+yEnd.toString()+") (Error: "+error.toString()+" px)",
@@ -281,11 +284,13 @@ window.onload = function() {
 				size: 12,
 				line: {
 					color: 'rgba(217, 217, 217, 0.14)',
-					width: 0.5
+					width: 5
 				},
-				opacity: 0
+				color: 'rgb(0,191,255)',
+				opacity: 0.85
 			},
 			type: 'scatter3d',
+			name: 'Point',
 		}
 		var trace2 = {
 			x: [],
@@ -294,10 +299,11 @@ window.onload = function() {
 			mode: 'lines',
 	        	line: {
 	        		opacity: 0.8,
-	        		color: 'rgb(0,0,200)',
+	        		color: 'rgb(0,0,0)',
 	        		width: 7,
 	        	},
 			type: 'scatter3d',
+			name: 'Basis',
 		}
 
 		var data = [trace1, trace2];
