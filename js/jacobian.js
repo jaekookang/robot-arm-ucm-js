@@ -1,14 +1,18 @@
 /*
-This script includes functions to compute the Jacobian matrix
-as well as the null/range space for the given Jacobian.
-
-2018-12-25 Jaekoo Kang
-
-References:
-- Matrix calculation: https://medium.com/@marielwerner28/matrix-methods-in-js-6331cc95daf7
-- Singular Value Decomposition: http://mlweb.loria.fr/lalolab/lalolib.html 
-- PCA: https://labriata.github.io/jsinscience/pca/index.html
-*/
+ * This script includes functions to compute the Jacobian matrix
+ * as well as the null/range space for the given Jacobian.
+ * 
+ * 2018-12-25 Jaekoo Kang
+ *
+ * Note:
+ * - Null space (e) compated as in `J * e = 0 (e ~= 0)`.
+ * - The orthogonal space of e is called range space or CM space.
+ * 
+ * References:
+ * - Matrix calculation: https://medium.com/@marielwerner28/matrix-methods-in-js-6331cc95daf7
+ * - Singular Value Decomposition: http://mlweb.loria.fr/lalolab/lalolib.html 
+ * - PCA: https://labriata.github.io/jsinscience/pca/index.html
+ */
 
 function getJacobian(l1,l2,l3,a1,a2,a3) {
 	// Compute the Jacobian matrix
@@ -56,25 +60,41 @@ function mySVD(jacobianArray) {
 	return [mU, s, mV]; 
 }
 
-function getBases(svdResult) {
-	// Compute the UCM and the CM bases
-	let mU = svdResult[0],
-		s = svdResult[1],
-		mV = svdResult[2];
-	let ucm = [],
-		cm1 = [],
-		cm2 = [];
+// function getBases(svdResult) {
+// 	/* 
+// 	Compute the UCM and the CM bases 
 
-	// only when the dimensions are met
-	// Retrieve UCM bases
-	for (var i=0; i<mU.length; i++) {
-		ucm[i] = mU[mU.length-1][i];
-	}
-	// Retrieve CM bases
-	for (var i=0; i<mU.length; i++) {
-		cm1[i] = mU[0][i]; // first CM base
-		cm2[i] = mU[1][i]; // second CM base
-	}
-	return [ucm, cm1, cm2];
+// 	This function is INCORRECT.
+// 	- Whether the SVD value (or eigenvalue) approaches to near zero
+// 	  is not tested. It should be tested to compute the null space.
+// 	- TODO: Fix this function.
+// 	*/
+// 	let mU = svdResult[0],
+// 		s = svdResult[1],
+// 		mV = svdResult[2];
+// 	let ucm = [],
+// 		cm1 = [],
+// 		cm2 = [];
+
+// 	// only when the dimensions are met
+// 	// Retrieve UCM bases
+// 	for (var i=0; i<mU.length; i++) {
+// 		ucm[i] = mU[mU.length-1][i];
+// 	}
+// 	// Retrieve CM bases
+// 	for (var i=0; i<mU.length; i++) {
+// 		cm1[i] = mU[0][i]; // first CM base
+// 		cm2[i] = mU[1][i]; // second CM base
+// 	}
+// 	return [ucm, cm1, cm2];
+// }
+
+function getBases(jacobianArray) {
+	/* Compute Null bases for the UCM space */
+	let jacobianMatrix = array2mat(jacobianArray);
+	let ucm = nullspace(jacobianMatrix);
+	let cm = nullspace(ucm);
+	return [ucm, cm];
 }
+
 

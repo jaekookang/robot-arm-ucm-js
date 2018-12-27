@@ -19,7 +19,10 @@ window.onload = function() {
 	var mousePosition,
 		isMouseDown,
 		isLastJointDown,
-		whichArm;
+		whichArm,
+		mouse = {
+			state: false,
+		};
 	// Get Task space
 	var cvsTask = document.getElementById('cvs-task');
 	var ctxTask = cvsTask.getContext('2d'), 
@@ -48,38 +51,63 @@ window.onload = function() {
 	var ucm_vec,
 		cm1_vec,
 		cm2_vec,
-		ucm_vec_ext,
-		ucm_vec_ctr,
-		scaler = 5;
+		ucm_vec_end,
+		ucm_vec_beg,
+		scaler = 10;
 	// Plotly parameters
 	var rangeScaler = 2,
 		trace1,
 		trace2,
 		data,
 		layout;
+	// Slider parameter
+	var slider = {
+		state: false,
+	}
 
 	// Add listeners
 	document.addEventListener('mousemove', move, false);
 	document.addEventListener('mousedown', setDraggable, false);
 	document.addEventListener('mouseup', setDraggable, false);
 
-	// Define arms
-	let IK = new InverseKinematics(ctxTaskWidth/2, ctxTaskHeight/2);
-	IK.addArm(seg1, theta1, theta1Color);  // bottom
-    IK.addArm(seg2, theta2, theta2Color);  // center
-    IK.addArm(seg3, theta3, theta3Color);  // top
+	if (!slider.state) {
+		// Define arms
+		var IK = new InverseKinematics(ctxTaskWidth/2, ctxTaskHeight/2);
+		IK.addArm(seg1, theta1, theta1Color);  // bottom
+	    IK.addArm(seg2, theta2, theta2Color);  // center
+	    IK.addArm(seg3, theta3, theta3Color);  // top
 
-    // Initial update for the synchronous execution consequently
-    IK.reach(IK.xEnd, IK.yEnd, 2);
-    Promise.resolve(initPlotly())
-    	.then(update())
-    	.then(updatePlot());
-    // Promise.resolve(update()).then(initPlotly());
-    writeLog(IK.angles[0], IK.angles[1], IK.angles[2]);
-    writeInitMsg("Click & Drag the joints!");
+	    // Initial update for the synchronous execution consequently
+	    IK.reach(IK.xEnd, IK.yEnd, 2);
+	    Promise.resolve(initPlotly())
+	    	.then(update())
+	    	.then(updateUCM())
+	    	.then(updatePlot());
+	    writeLog(IK.angles[0], IK.angles[1], IK.angles[2]);
+	    writeInitMsg("Click & Drag the joints!");
+	}
+
+    $("#slider-ucm").on("input", function() {
+    	/* Update Joint and Task space */
+    	let dx = (ucm_vec_end[0]-ucm_vec_beg[0])*this.value;
+    	let dy = (ucm_vec_end[1]-ucm_vec_beg[1])*this.value;
+    	let dz = (ucm_vec_end[2]-ucm_vec_beg[2])*this.value;
+    	// Update Task space
+    	IK = new InverseKinematics(ctxTaskWidth/2, ctxTaskHeight/2);
+    	IK.addArm(seg1, ucm_vec_beg[0]+dx, theta1Color);  // bottom
+	    IK.addArm(seg2, ucm_vec_beg[1]+dy, theta2Color);  // center
+	    IK.addArm(seg3, ucm_vec_beg[2]+dz, theta3Color);  // top
+	    IK.reach(IK.xEnd, IK.yEnd, 2);
+	    update();
+	    // Update Joint space
+	    updatePlot();
+
+	    console.log(ucm_vec_beg[0]+dx,ucm_vec_beg[1]+dy,ucm_vec_beg[2]+dz);
+	    slider.state = true;
+    });
 
 	function update() {
-		// Draw the circle and the arms
+		/* Draw the circle and the arms */
 		ctxTask.clearRect(0, 0, ctxTaskWidth, ctxTaskHeight);
 		// Add a circle to task space
 		ctxTask.beginPath();
@@ -88,17 +116,25 @@ window.onload = function() {
 		// Draw arms
 		IK.render(ctxTask);
 		ctxLog.clearRect(0,0,ctxLogWidth, ctxLogHeight);
+	}
 
+	function updateUCM() {
 		var jacob = getJacobian(seg1,seg2,seg3,IK.angles[0],IK.angles[1],IK.angles[2]);
-		var SVD = getBases(mySVD(jacob));
-		ucm_vec = mul(array2vec(SVD[0]), scaler),
-		cm1_vec = array2vec(SVD[1]),
-		cm2_vec = array2vec(SVD[2]);
+		// var SVD = getBases(mySVD(jacob));
+		// ucm_vec = mul(array2vec(SVD[0]), scaler),
+		// cm1_vec = array2vec(SVD[1]),
+		// cm2_vec = array2vec(SVD[2]);
+		bases = getBases(jacob);
+		ucm_vec = bases[0];
+		cm1_vec = bases[1][0];
+		cm2_vec = bases[1][1];
 
 		// Center UCM bases at the terminal end point & Extend by scaler
-		ucm_vec_ext = add(entrywisediv(ucm_vec, 2), IK.angles);
-		ucm_vec_ctr = sub([0,0,0], entrywisediv(ucm_vec, 2));
-		ucm_vec_ctr = add(ucm_vec_ctr, IK.angles);
+		// ucm_vec_end: the end of the ucm vector
+		// ucm_vec_beg: the other end of the ucm vector
+		ucm_vec_end = add(entrywisediv(ucm_vec, 2), IK.angles);
+		ucm_vec_beg = sub([0,0,0], entrywisediv(ucm_vec, 2));
+		ucm_vec_beg = add(ucm_vec_beg, IK.angles);
 	}
 
 	function updatePlot() {
@@ -110,16 +146,13 @@ window.onload = function() {
 		}, 0); // trace1
 		// Draw UCM bases
 		Plotly.restyle(divJoint,{
-			x: [[ucm_vec_ctr[0], ucm_vec_ext[0]]], // double bracket!
-			y: [[ucm_vec_ctr[1], ucm_vec_ext[1]]],
-			z: [[ucm_vec_ctr[2], ucm_vec_ext[2]]],
+			x: [[ucm_vec_beg[0], ucm_vec_end[0]]], // double bracket!
+			y: [[ucm_vec_beg[1], ucm_vec_end[1]]],
+			z: [[ucm_vec_beg[2], ucm_vec_end[2]]],
 		}, 1) // trace2
 	}
 
-	var focused = {
-		state: false,
-	}
-
+	//----- Mouse -------------------------------------------------------------
 	function move(e) {
 		// Mouse movement callback
 		if (!isMouseDown) {
@@ -127,9 +160,10 @@ window.onload = function() {
 		}
 		getMousePosition(e);
 		// if any joint is focused
-		if (focused.state) {
+		if (mouse.state) {
 			IK.reach(mousePosition.x, mousePosition.y, whichArm);
 			update();
+			updateUCM();
 			updatePlot();
 			writeLog(IK.angles[0], IK.angles[1], IK.angles[2]);
 			return;
@@ -141,11 +175,13 @@ window.onload = function() {
 			if (cursorOverJoint(circle)) {
 				whichArm = i;
 				IK.reach(mousePosition.x, mousePosition.y, whichArm);
-				focused.state = true;
+				mouse.state = true;
+				slider.state = false;
+				update();
+				updateUCM();
 				break;
 			}
 		}
-		update();
 	}
 
 	function setDraggable(e) {
@@ -154,12 +190,13 @@ window.onload = function() {
 			isMouseDown = true;
 		} else if (t === 'mouseup') {
 			isMouseDown = false;
+			// Block mouse update by setting it false
 			releaseFocus();
 		}
 	}
 
 	function releaseFocus() {
-		focused.state = false;
+		mouse.state = false;
 	}
 
 	function getMousePosition(e) {
@@ -185,6 +222,7 @@ window.onload = function() {
 	    context.fill();
 	}
 
+	//----- Log -----------------------------------------------------------
 	function writeLog(theta1, theta2, theta3) {
 		// Convert radians to angles
 		let fixedPoint = 1;
@@ -206,7 +244,7 @@ window.onload = function() {
 		ctxTask.fillText(txt, ctxTaskWidth/2, ctxTaskHeight*0.3);
 	}
 
-	//--------------------------------------------------------------------
+	//----- Plot ------------------------------------------------------------
 	function initPlotly() {
 		// Initiate plotly
 		// console.log(IK.angles[0]*180/Math.PI, IK.angles[1]*180/Math.PI, IK.angles[2]*180/Math.PI,);
