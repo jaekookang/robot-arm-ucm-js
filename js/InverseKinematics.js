@@ -134,6 +134,9 @@ class InverseKinematics {
 		for (var i=angles.length-1; i>0; i--) {
 			this.angles[i] = angles[i] - angles[i-1];
 		}
+		// Update end points
+		this.xEnd = this.lastArm.getEndXY()[0];
+		this.yEnd = this.lastArm.getEndXY()[1];
 	}
 }
 

@@ -2,13 +2,13 @@
 <html>
 <head>
 	<title>robot-arm-ucm</title>
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+	<link rel="stylesheet" href="css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 	<link rel="stylesheet" type="text/css" href="css/style.css">
 	<!-- Javascript -->
-	<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'></script>
-	<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-	<!-- <script src="http://mlweb.loria.fr/lalolib.js"></script> -->
+	<script type="text/javascript" src="js/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="></script>
+	<script type="text/javascript" src="js/plotly-latest.min.js"></script>
 	<script type="text/javascript" src="js/lalolib/lalolib.js"></script>
 	<script type="text/javascript" src="js/jacobian.js"></script>
 	<script type="text/javascript" src="js/arm.js"></script>
@@ -17,7 +17,6 @@
 	
 </head>
 <body>
-	
 	
 	<!-- Grids -->
 	<div class="container">
@@ -54,7 +53,7 @@
 			<div class="div-slider col-xs-6 mr-2" style="width:400px; height:200px">
 				<!-- <canvas id="cvs-slider" width="400px" height="200px"></canvas> -->
 				<p><br />UCM &nbsp;</p>
-				<input type="range" step="0.05" min="0" max="1" value="0.50" class="slider" id="slider-ucm">
+				<input type="range" step="0.05" min="0" max="1" value="0.5" class="slider" id="slider-ucm">
 			</div>
 			<!-- Info -->
 			<div class="col-xs-6">

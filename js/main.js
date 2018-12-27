@@ -37,7 +37,7 @@ window.onload = function() {
 		ctxLogWidth = cvsLog.width,
 		ctxLogHeight = cvsLog.height;
 	// Set joint angles
-	var theta1 = 80*Math.PI/180, 
+	var theta1 = -80*Math.PI/180, 
 		theta2 = 70*Math.PI/180, // w.r.t. theta1
 		theta3 = 30*Math.PI/180, // w.r.t. theta1
 		theta1Color = 'rgba(255,0,0,0.6)',
@@ -53,7 +53,10 @@ window.onload = function() {
 		cm2_vec,
 		ucm_vec_end,
 		ucm_vec_beg,
-		scaler = 10;
+		scaler = 3,
+		IK,
+		xEndPrev = [],
+		yEndPrev = [];
 	// Plotly parameters
 	var rangeScaler = 2,
 		trace1,
@@ -70,20 +73,22 @@ window.onload = function() {
 	document.addEventListener('mousedown', setDraggable, false);
 	document.addEventListener('mouseup', setDraggable, false);
 
+	// Initialization
 	if (!slider.state) {
 		// Define arms
 		var IK = new InverseKinematics(ctxTaskWidth/2, ctxTaskHeight/2);
 		IK.addArm(seg1, theta1, theta1Color);  // bottom
 	    IK.addArm(seg2, theta2, theta2Color);  // center
 	    IK.addArm(seg3, theta3, theta3Color);  // top
-
+	    // Set task variables
+		xEndPrev.push(IK.xEnd),
+		yEndPrev.push(IK.yEnd);
 	    // Initial update for the synchronous execution consequently
 	    IK.reach(IK.xEnd, IK.yEnd, 2);
 	    Promise.resolve(initPlotly())
 	    	.then(update())
 	    	.then(updateUCM())
 	    	.then(updatePlot());
-	    writeLog(IK.angles[0], IK.angles[1], IK.angles[2]);
 	    writeInitMsg("Click & Drag the joints!");
 	}
 
@@ -98,11 +103,9 @@ window.onload = function() {
 	    IK.addArm(seg2, ucm_vec_beg[1]+dy, theta2Color);  // center
 	    IK.addArm(seg3, ucm_vec_beg[2]+dz, theta3Color);  // top
 	    IK.reach(IK.xEnd, IK.yEnd, 2);
-	    update();
-	    // Update Joint space
-	    updatePlot();
+	    update(); // Update Task space
+	    updatePlot(); // Update Joint space
 
-	    console.log(ucm_vec_beg[0]+dx,ucm_vec_beg[1]+dy,ucm_vec_beg[2]+dz);
 	    slider.state = true;
     });
 
@@ -116,6 +119,8 @@ window.onload = function() {
 		// Draw arms
 		IK.render(ctxTask);
 		ctxLog.clearRect(0,0,ctxLogWidth, ctxLogHeight);
+		// console.log("End:", IK.xEnd, IK.yEnd);
+		writeLog(IK.angles[0], IK.angles[1], IK.angles[2], IK.xEnd, IK.yEnd);
 	}
 
 	function updateUCM() {
@@ -125,9 +130,9 @@ window.onload = function() {
 		// cm1_vec = array2vec(SVD[1]),
 		// cm2_vec = array2vec(SVD[2]);
 		bases = getBases(jacob);
-		ucm_vec = bases[0];
-		cm1_vec = bases[1][0];
-		cm2_vec = bases[1][1];
+		ucm_vec = mul(bases[0], scaler);
+		cm1_vec = mul(bases[1][0], scaler);
+		cm2_vec = mul(bases[1][1], scaler);
 
 		// Center UCM bases at the terminal end point & Extend by scaler
 		// ucm_vec_end: the end of the ucm vector
@@ -162,10 +167,14 @@ window.onload = function() {
 		// if any joint is focused
 		if (mouse.state) {
 			IK.reach(mousePosition.x, mousePosition.y, whichArm);
-			update();
-			updateUCM();
-			updatePlot();
-			writeLog(IK.angles[0], IK.angles[1], IK.angles[2]);
+			update(); // Update Task space
+			updateUCM(); // Update UCM
+			updatePlot(); // Update Joint space
+			
+			// Re-center the slider
+			document.getElementById("slider-ucm").value = 0.5;
+			xEndPrev.push(IK.xEnd),
+			yEndPrev.push(IK.yEnd);
 			return;
 		}
 
@@ -223,17 +232,32 @@ window.onload = function() {
 	}
 
 	//----- Log -----------------------------------------------------------
-	function writeLog(theta1, theta2, theta3) {
+	function writeLog(theta1, theta2, theta3, xEnd, yEnd) {
 		// Convert radians to angles
-		let fixedPoint = 1;
-		ang1 = (theta1*180/Math.PI).toFixed(fixedPoint);
-		ang2 = (theta2*180/Math.PI).toFixed(fixedPoint);
-		ang3 = (theta3*180/Math.PI).toFixed(fixedPoint);
-		// Write log
-		ctxLog.font = "30px Comic Sans MS";
+		let fixedPoint = 0,
+			ang1 = (theta1*180/Math.PI).toFixed(fixedPoint),
+			ang2 = (theta2*180/Math.PI).toFixed(fixedPoint),
+			ang3 = (theta3*180/Math.PI).toFixed(fixedPoint);
+		xEnd = xEnd.toFixed(0);
+		yEnd = yEnd.toFixed(0);
+
+		// Write Joint angles (thetas)
+		ctxLog.font = "20px Comic Sans MS";
 		ctxLog.textAlign = "center";
-		ctxLog.fillText("("+ang1.toString()+", "+ang2.toString()+", "+ang3.toString()+")",
-			ctxLogWidth/2, ctxLogHeight/2);
+		ctxLog.fillText("Joints (angles): ("+ang1.toString()+", "+ang2.toString()+", "+ang3.toString()+")",
+			ctxLogWidth/2, ctxLogHeight/2*0.8);
+		// Write Task xy-coordinates and error (amount of deviation at the tip)
+		let dx = Math.pow(xEnd - xEndPrev[xEndPrev.length-1], 2),
+			dy = Math.pow(yEnd - yEndPrev[yEndPrev.length-1], 2);
+		if (slider.state) {
+			error = Math.sqrt(dx+dy).toFixed(1);
+		} else {
+			error = 0;
+		}
+		ctxLog.font = "20px Comic Sans MS";
+		ctxLog.textAlign = "center";
+		ctxLog.fillText("Tasks (x,y): ("+xEnd.toString()+", "+yEnd.toString()+") (Error: "+error.toString()+" px)",
+			ctxLogWidth/2, ctxLogHeight/2*1.2);
 	}
 
 	function writeInitMsg(txt) {
@@ -241,7 +265,7 @@ window.onload = function() {
 		ctxTask.font = "20px Comic Sans MS";
 		ctxTask.textAlign = "center";
 		ctxTask.fillStyle = "black";
-		ctxTask.fillText(txt, ctxTaskWidth/2, ctxTaskHeight*0.3);
+		ctxTask.fillText(txt, ctxTaskWidth/2, ctxTaskHeight*0.7);
 	}
 
 	//----- Plot ------------------------------------------------------------
@@ -293,37 +317,42 @@ window.onload = function() {
 				    	x: 1, y: 1, z: 1, // <- critical
 				    },
 					xaxis: {
-						title: 'theta1',
+						title: 'angle1',
 						backgroundcolor: theta1Color,
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
 						range: [-Math.PI*rangeScaler, Math.PI*rangeScaler],
 						nticks: 3,
+						autorange: false,
+						autosize: false,
 					},
 					yaxis: {
-						title: 'theta2',
+						title: 'angle2',
 						backgroundcolor: theta2Color,
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
 						range: [-Math.PI*rangeScaler, Math.PI*rangeScaler],
 						nticks: 3,
+						autorange: false,
+						autosize: false,
 					},
 					zaxis: {
-						title: 'theta3',
+						title: 'angle3',
 						backgroundcolor: theta3Color,
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
 						range: [-Math.PI*rangeScaler, Math.PI*rangeScaler],
 						nticks: 3,
+						autorange: false,
+						autosize: false,
 					},
 					camera: {
 						eye: {x:1.5, y:1.5, z:1.5},
 					},
-					autorange: false,
-					autosize: false,
+					
 				},
 			};
 		Plotly.newPlot('div-joint', data, layout);
