@@ -1,13 +1,20 @@
 /*
-2018-12-23 Jaekoo Kang
-
-References:
-- PalinDrome555: http://jsfiddle.net/PalinDrome555/65v75m7j/3/
-- Plotly restyle: https://codepen.io/etpinard/pen/kXGYyQ
+ * 2018-12-23 Jaekoo Kang
+ *
+ * Note:
+ * - To run locally, use `livereload` on Terminal.
+ * - After importing lalolib, all the basic math functions are overriden 
+ *   if their names overlap (eg, rand) -> see LALOLib.
+ * 
+ * References:
+ * - PalinDrome555: http://jsfiddle.net/PalinDrome555/65v75m7j/3
+ * - Plotly, restyle: https://codepen.io/etpinard/pen/kXGYyQ
+ * - Plotly, aspect: https://plot.ly/javascript/3d-axes
+ * - Plotly, meshgrid: https://plot.ly/javascript/3d-mesh
+ * - LALOLib: http://mlweb.loria.fr/lalolab/lalolib.html#apiref
 */
 
 window.onload = function() {
-
 	// Set mouse variables
 	var mousePosition,
 		isMouseDown,
@@ -37,6 +44,19 @@ window.onload = function() {
 	var seg1 = 70,
 		seg2 = 50,
 		seg3 = 30;
+	// Set arrays
+	var ucm_vec,
+		cm1_vec,
+		cm2_vec,
+		ucm_vec_ext,
+		ucm_vec_ctr,
+		scaler = 5;
+	// Plotly parameters
+	var rangeScaler = 2,
+		trace1,
+		trace2,
+		data,
+		layout;
 
 	// Add listeners
 	document.addEventListener('mousemove', move, false);
@@ -51,7 +71,10 @@ window.onload = function() {
 
     // Initial update for the synchronous execution consequently
     IK.reach(IK.xEnd, IK.yEnd, 2);
-    Promise.resolve(update()).then(initPlotly());
+    Promise.resolve(initPlotly())
+    	.then(update())
+    	.then(updatePlot());
+    // Promise.resolve(update()).then(initPlotly());
     writeLog(IK.angles[0], IK.angles[1], IK.angles[2]);
     writeInitMsg("Click & Drag the joints!");
 
@@ -67,9 +90,30 @@ window.onload = function() {
 		ctxLog.clearRect(0,0,ctxLogWidth, ctxLogHeight);
 
 		var jacob = getJacobian(seg1,seg2,seg3,IK.angles[0],IK.angles[1],IK.angles[2]);
-		// console.log(getBases(mySVD(jacob)));
-		Promise.resolve(mySVD(jacob)).then(getBases());
-		console.log(ucm, cm1, cm2);
+		var SVD = getBases(mySVD(jacob));
+		ucm_vec = mul(array2vec(SVD[0]), scaler),
+		cm1_vec = array2vec(SVD[1]),
+		cm2_vec = array2vec(SVD[2]);
+
+		// Center UCM bases at the terminal end point & Extend by scaler
+		ucm_vec_ext = add(entrywisediv(ucm_vec, 2), IK.angles);
+		ucm_vec_ctr = sub([0,0,0], entrywisediv(ucm_vec, 2));
+		ucm_vec_ctr = add(ucm_vec_ctr, IK.angles);
+	}
+
+	function updatePlot() {
+		// Draw joint plot
+		Plotly.restyle(divJoint, {	
+			x: [[IK.angles[0]]], // double bracket!
+			y: [[IK.angles[1]]],
+			z: [[IK.angles[2]]], 
+		}, 0); // trace1
+		// Draw UCM bases
+		Plotly.restyle(divJoint,{
+			x: [[ucm_vec_ctr[0], ucm_vec_ext[0]]], // double bracket!
+			y: [[ucm_vec_ctr[1], ucm_vec_ext[1]]],
+			z: [[ucm_vec_ctr[2], ucm_vec_ext[2]]],
+		}, 1) // trace2
 	}
 
 	var focused = {
@@ -86,14 +130,8 @@ window.onload = function() {
 		if (focused.state) {
 			IK.reach(mousePosition.x, mousePosition.y, whichArm);
 			update();
+			updatePlot();
 			writeLog(IK.angles[0], IK.angles[1], IK.angles[2]);
-			// Draw joint plot
-			Plotly.restyle(divJoint, 
-				{	
-					x: [[IK.angles[0]]], // double bracket!
-					y: [[IK.angles[1]]],
-					z: [[IK.angles[2]]], 
-				});
 			return;
 		}
 
@@ -125,7 +163,7 @@ window.onload = function() {
 	}
 
 	function getMousePosition(e) {
-		var rect = cvsTask.getBoundingClientRect();
+		let rect = cvsTask.getBoundingClientRect();
 		mousePosition = {
 			x: Math.round(e.x - rect.left),
 			y: Math.round(e.y - rect.top)
@@ -135,8 +173,8 @@ window.onload = function() {
 	function cursorOverJoint(circle) {
 		// Check if the mouse hovers over the joint angle
 		// by calculating the relative distance from the circle center
-		var x = mousePosition.x - circle.x;
-		var y = mousePosition.y - circle.y;
+		let x = mousePosition.x - circle.x;
+		let y = mousePosition.y - circle.y;
 		// return true if x^2 + y^2 <= radius^2
 		return x*x + y*y <= circle.r*circle.r;
 	}
@@ -149,7 +187,7 @@ window.onload = function() {
 
 	function writeLog(theta1, theta2, theta3) {
 		// Convert radians to angles
-		var fixedPoint = 1;
+		let fixedPoint = 1;
 		ang1 = (theta1*180/Math.PI).toFixed(fixedPoint);
 		ang2 = (theta2*180/Math.PI).toFixed(fixedPoint);
 		ang3 = (theta3*180/Math.PI).toFixed(fixedPoint);
@@ -180,12 +218,27 @@ window.onload = function() {
 			marker: {
 				size: 12,
 				line: {
-				color: 'rgba(217, 217, 217, 0.14)',
-				width: 0.5},
-				opacity: 0},
+					color: 'rgba(217, 217, 217, 0.14)',
+					width: 0.5
+				},
+				opacity: 0
+			},
 			type: 'scatter3d',
 		}
-		var data = [trace1];
+		var trace2 = {
+			x: [],
+			y: [],
+			z: [],
+			mode: 'lines',
+	        	line: {
+	        		opacity: 0.8,
+	        		color: 'rgb(0,0,200)',
+	        		width: 7,
+	        	},
+			type: 'scatter3d',
+		}
+
+		var data = [trace1, trace2];
 		var layout = {
 				width: 404,
 				height: 354,
@@ -195,32 +248,45 @@ window.onload = function() {
 					b: 0,
 					t: 0
 		  		},
+		  		showlegend: false,
 		  		scene: {
+		  			aspectmode: "manual", // <- critical
+		  			aspectratio: {
+				    	x: 1, y: 1, z: 1, // <- critical
+				    },
 					xaxis: {
+						title: 'theta1',
 						backgroundcolor: theta1Color,
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
-						range: [-Math.PI*2, Math.PI*2],
+						range: [-Math.PI*rangeScaler, Math.PI*rangeScaler],
+						nticks: 3,
 					},
 					yaxis: {
+						title: 'theta2',
 						backgroundcolor: theta2Color,
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
-						range: [-Math.PI*2, Math.PI*2],
+						range: [-Math.PI*rangeScaler, Math.PI*rangeScaler],
+						nticks: 3,
 					},
 					zaxis: {
+						title: 'theta3',
 						backgroundcolor: theta3Color,
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
-						range: [-Math.PI*2, Math.PI*2],
+						range: [-Math.PI*rangeScaler, Math.PI*rangeScaler],
+						nticks: 3,
 					},
 					camera: {
 						eye: {x:1.5, y:1.5, z:1.5},
 					},
-				}
+					autorange: false,
+					autosize: false,
+				},
 			};
 		Plotly.newPlot('div-joint', data, layout);
 	}
