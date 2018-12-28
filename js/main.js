@@ -259,7 +259,7 @@ window.onload = function() {
 		
 		ctxLog.font = "20px Comic Sans MS";
 		ctxLog.textAlign = "center";
-		ctxLog.fillText("Tasks (x,y): ("+xEnd.toString()+", "+yEnd.toString()+") (Error: "+error.toString()+" px)",
+		ctxLog.fillText("Task (x,y): ("+xEnd.toString()+", "+yEnd.toString()+") (Error: "+error.toString()+" px)",
 			ctxLogWidth/2, ctxLogHeight/2*1.2);
 	}
 
