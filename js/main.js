@@ -5,6 +5,12 @@
  * - To run locally, use `livereload` on Terminal.
  * - After importing lalolib, all the basic math functions are overriden 
  *   if their names overlap (eg, rand) -> see LALOLib.
+ * - For sharing local server, use localtunnel (https://localtunnel.github.io/www/).
+ *   e.g. lt --port 35729
+ *
+ * TODO:
+ * - Add iPhone/iPad touch movement
+ * - Make UCM space as a curve
  * 
  * References:
  * - PalinDrome555: http://jsfiddle.net/PalinDrome555/65v75m7j/3
@@ -67,11 +73,35 @@ window.onload = function() {
 	var slider = {
 		state: false,
 	}
+	// Touch movement
+	var touch;
 
 	// Add listeners
 	document.addEventListener('mousemove', move, false);
 	document.addEventListener('mousedown', setDraggable, false);
 	document.addEventListener('mouseup', setDraggable, false);
+	// // track touch movement
+ //    cvsTask.addEventListener('touchstart', function(e) {touchDown(e);}, false);
+	// cvsTask.addEventListener('touchmove', function(e) {touchMove(e);}, false);
+
+	// function touchMove(e) {
+	//     e.preventDefault();
+	//     touch = e.touches[0];
+
+	//     move(touch);
+
+	//     document.getElementById("xtext").innerHTML = touch.pageX;
+	//     document.getElementById("ytext").innerHTML = touch.pageY;   
+	// }
+
+	// function touchUp(e) {
+	// 	setDraggable(e);
+	// }
+
+	// function touchDown(e) {
+	// 	setDraggable(e);
+	// }
+	
 
 	// Initialization
 	if (!slider.state) {
@@ -205,10 +235,12 @@ window.onload = function() {
 	}
 
 	function getMousePosition(e) {
-		let rect = cvsTask.getBoundingClientRect();
+		let rect = cvsTask.getBoundingClientRect(),
+			posX = e.x,
+			posY = e.y;
 		mousePosition = {
-			x: Math.round(e.x - rect.left),
-			y: Math.round(e.y - rect.top)
+			x: Math.round(posX - rect.left),
+			y: Math.round(posY - rect.top)
 		}
 	}
 
@@ -219,12 +251,6 @@ window.onload = function() {
 		let y = mousePosition.y - circle.y;
 		// return true if x^2 + y^2 <= radius^2
 		return x*x + y*y <= circle.r*circle.r;
-	}
-
-	function cutCircle(context, x, y, radius){
-	    context.globalCompositeOperation = 'destination-out'
-	    context.arc(x, y, radius, 0, Math.PI*2, true);
-	    context.fill();
 	}
 
 	//----- Log -----------------------------------------------------------
