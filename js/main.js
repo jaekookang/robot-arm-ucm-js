@@ -59,16 +59,20 @@ window.onload = function() {
 		cm2_vec,
 		ucm_vec_end,
 		ucm_vec_beg,
-		scaler = 2,
+		scaler = 0.01,
 		IK,
 		xEndPrev = [],
-		yEndPrev = [];
+		yEndPrev = [],
+		xAngleUCM = [],
+		yAngleUCM = [],
+		zAngleUCM = [];
 	// Plotly parameters
-	var rangeScaler = 2,
+	var rangeScaler = 5,
 		trace1,
 		trace2,
 		data,
-		layout;
+		layout,
+		jointAxisRange = [-Math.PI*rangeScaler, Math.PI*rangeScaler];
 	// Slider parameter
 	var slider = {
 		state: false,
@@ -117,24 +121,35 @@ window.onload = function() {
 	    IK.reach(IK.xEnd, IK.yEnd, 2);
 	    initPlotly();
 	    update();
-	    updateUCM();
+	    updateUCM2();
 	    updatePlot(IK.angles[0], IK.angles[1], IK.angles[2]);
 	    writeInitMsg("Click & Drag the joints!");
 	}
 
     $("#slider-ucm").on("input", function() {
     	/* Update Joint and Task space */
-    	let dx = (ucm_vec_end[0]-ucm_vec_beg[0])*this.value;
-    	let dy = (ucm_vec_end[1]-ucm_vec_beg[1])*this.value;
-    	let dz = (ucm_vec_end[2]-ucm_vec_beg[2])*this.value;
+    	// let dx = (ucm_vec_end[0]-ucm_vec_beg[0])*this.value;
+    	// let dy = (ucm_vec_end[1]-ucm_vec_beg[1])*this.value;
+    	// let dz = (ucm_vec_end[2]-ucm_vec_beg[2])*this.value;
+    	let xIdx = Math.round((xAngleUCM.length-1)*this.value),
+    		yIdx = Math.round((yAngleUCM.length-1)*this.value),
+    		zIdx = Math.round((zAngleUCM.length-1)*this.value),
+    		dx = xAngleUCM[xIdx],
+    		dy = yAngleUCM[yIdx],
+    		dz = zAngleUCM[zIdx];
+
     	// Update Task space
     	IK = new InverseKinematics(ctxTaskWidth/2, ctxTaskHeight/2);
-    	IK.addArm(seg1, ucm_vec_beg[0]+dx, theta1Color);  // bottom
-	    IK.addArm(seg2, ucm_vec_beg[1]+dy, theta2Color);  // center
-	    IK.addArm(seg3, ucm_vec_beg[2]+dz, theta3Color);  // top
+    	// IK.addArm(seg1, ucm_vec_beg[0]+dx, theta1Color);  // bottom
+	    // IK.addArm(seg2, ucm_vec_beg[1]+dy, theta2Color);  // center
+	    // IK.addArm(seg3, ucm_vec_beg[2]+dz, theta3Color);  // top
+	    IK.addArm(seg1, dx, theta1Color);  // bottom
+	    IK.addArm(seg2, dy, theta2Color);  // center
+	    IK.addArm(seg3, dz, theta3Color);  // top
 	    IK.reach(IK.xEnd, IK.yEnd, 2);
 	    update(); // Update Task space
-	    updatePlot(ucm_vec_beg[0]+dx, ucm_vec_beg[1]+dy, ucm_vec_beg[2]+dz); // Update Joint space
+	    // updatePlot(ucm_vec_beg[0]+dx, ucm_vec_beg[1]+dy, ucm_vec_beg[2]+dz); // Update Joint space
+	    updatePlot(dx, dy, dz); // Update Joint space
 
 	    slider.state = true;
     });
@@ -153,7 +168,8 @@ window.onload = function() {
 		writeLog(IK.angles[0], IK.angles[1], IK.angles[2], IK.xEnd, IK.yEnd);
 	}
 
-	function updateUCM() {
+	function updateUCM1() {
+		/* Update UCM by linearly approximating at the current angle */
 		var jacob = getJacobian(seg1,seg2,seg3,IK.angles[0],IK.angles[1],IK.angles[2]);
 		bases = getBases(jacob);
 		ucm_vec = mul(bases[0], scaler);
@@ -175,12 +191,59 @@ window.onload = function() {
 			y: [[ang2]],
 			z: [[ang3]], 
 		}, 0); // trace1
+
 		// Draw UCM bases
 		Plotly.restyle(divJoint,{
-			x: [[ucm_vec_beg[0], ucm_vec_end[0]]], // double bracket!
-			y: [[ucm_vec_beg[1], ucm_vec_end[1]]],
-			z: [[ucm_vec_beg[2], ucm_vec_end[2]]],
+			x: [xAngleUCM], // double bracket!
+			y: [yAngleUCM],
+			z: [zAngleUCM],
 		}, 1) // trace2
+
+		// // Draw UCM bases
+		// Plotly.restyle(divJoint,{
+		// 	x: [[ucm_vec_beg[0], ucm_vec_end[0]]], // double bracket!
+		// 	y: [[ucm_vec_beg[1], ucm_vec_end[1]]],
+		// 	z: [[ucm_vec_beg[2], ucm_vec_end[2]]],
+		// }, 1) // trace2
+	}
+
+	function updateUCM2() {
+		/* Update UCM by approximating point-after-point and connecting them subsequently */
+		let ang1 = IK.angles[0],
+			ang2 = IK.angles[1],
+			ang3 = IK.angles[2],
+			ucm_vec;
+		xAngleUCM = [ang1];
+		yAngleUCM = [ang2];
+		zAngleUCM = [ang3];
+
+		// Add on the positive direction on UCM
+		for (var i=0; i<2000; i++) {
+			// Get jacobian
+			jacob = getJacobian(seg1,seg2,seg3,ang1,ang2,ang3);
+			bases = getBases(jacob);
+			// Get UCM vector
+			ucm_vec = mul(bases[0], scaler);
+			// Translate UCM vector
+			ucm_vec = add([ang1,ang2,ang3], ucm_vec);
+			// Save
+			xAngleUCM.push(ucm_vec[0]);
+			yAngleUCM.push(ucm_vec[1]);
+			zAngleUCM.push(ucm_vec[2]);
+			// Update
+			ang1 = ucm_vec[0];
+			ang2 = ucm_vec[1];
+			ang3 = ucm_vec[2];
+			// if (ang1 >= Math.PI) {
+			// 	ang1 *= -1;
+			// }
+			// if (ang2 >= Math.PI) {
+			// 	ang2 *= -1;
+			// }
+			// if (ang3 >= Math.PI) {
+			// 	ang3 *= -1;
+			// }
+		}
 	}
 
 	//----- Mouse -------------------------------------------------------------
@@ -194,11 +257,11 @@ window.onload = function() {
 		if (mouse.state) {
 			IK.reach(mousePosition.x, mousePosition.y, whichArm);
 			update(); // Update Task space
-			updateUCM(); // Update UCM
+			updateUCM2(); // Update UCM
 			updatePlot(IK.angles[0], IK.angles[1], IK.angles[2]); // Update Joint space
 			
 			// Re-center the slider
-			document.getElementById("slider-ucm").value = 0.5;
+			document.getElementById("slider-ucm").value = 0;
 			xEndPrev.push(IK.xEnd),
 			yEndPrev.push(IK.yEnd);
 			return;
@@ -213,7 +276,7 @@ window.onload = function() {
 				mouse.state = true;
 				slider.state = false;
 				update();
-				updateUCM();
+				updateUCM2();
 				break;
 			}
 		}
@@ -354,7 +417,7 @@ window.onload = function() {
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
-						range: [-Math.PI*rangeScaler, Math.PI*rangeScaler],
+						range: jointAxisRange,
 						nticks: 3,
 						autorange: false,
 						autosize: false,
@@ -365,7 +428,7 @@ window.onload = function() {
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
-						range: [-Math.PI*rangeScaler, Math.PI*rangeScaler],
+						range: jointAxisRange,
 						nticks: 3,
 						autorange: false,
 						autosize: false,
@@ -376,7 +439,7 @@ window.onload = function() {
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
-						range: [-Math.PI*rangeScaler, Math.PI*rangeScaler],
+						range: jointAxisRange,
 						nticks: 3,
 						autorange: false,
 						autosize: false,
