@@ -72,7 +72,8 @@ window.onload = function() {
 		trace2,
 		data,
 		layout,
-		jointAxisRange = [-Math.PI*rangeScaler, Math.PI*rangeScaler];
+		jointAxisRange = [-Math.PI*rangeScaler, Math.PI*rangeScaler],
+		nTicks = 5;
 	// Slider parameter
 	var slider = {
 		state: false,
@@ -403,35 +404,35 @@ window.onload = function() {
 				    	x: 1, y: 1, z: 1, // <- critical
 				    },
 					xaxis: {
-						title: 'angle1',
+						title: 'angle1 (rad)',
 						backgroundcolor: theta1Color,
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
 						range: jointAxisRange,
-						nticks: 3,
+						nticks: nTicks,
 						autorange: false,
 						autosize: false,
 					},
 					yaxis: {
-						title: 'angle2',
+						title: 'angle2 (rad)',
 						backgroundcolor: theta2Color,
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
 						range: jointAxisRange,
-						nticks: 3,
+						nticks: nTicks,
 						autorange: false,
 						autosize: false,
 					},
 					zaxis: {
-						title: 'angle3',
+						title: 'angle3 (rad)',
 						backgroundcolor: theta3Color,
 						showbackground: true,
 						gridcolor: "rgb(255, 255, 255)",
 						zerolinecolor: "rgb(255, 255, 255)",
 						range: jointAxisRange,
-						nticks: 3,
+						nticks: nTicks,
 						autorange: false,
 						autosize: false,
 					},
