@@ -234,15 +234,6 @@ window.onload = function() {
 			ang1 = ucm_vec[0];
 			ang2 = ucm_vec[1];
 			ang3 = ucm_vec[2];
-			// if (ang1 >= Math.PI) {
-			// 	ang1 *= -1;
-			// }
-			// if (ang2 >= Math.PI) {
-			// 	ang2 *= -1;
-			// }
-			// if (ang3 >= Math.PI) {
-			// 	ang3 *= -1;
-			// }
 		}
 	}
 
