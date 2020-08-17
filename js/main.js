@@ -116,7 +116,7 @@ window.onload = function() {
 	    IK.addArm(seg2, theta2, theta2Color);  // center
 	    IK.addArm(seg3, theta3, theta3Color);  // top
 	    // Set task variables
-		xEndPrev.push(IK.xEnd),
+		xEndPrev.push(IK.xEnd)
 		yEndPrev.push(IK.yEnd);
 		// Update
 	    IK.reach(IK.xEnd, IK.yEnd, 2);
