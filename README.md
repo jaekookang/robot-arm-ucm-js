@@ -12,3 +12,4 @@
 - 2024-10-25 updated
     - deployed via netlify
     - TODO: reorganize & packaging using npm, building using vite
+    - TODO: make is responsive on mobile phones (size, enable touch)
